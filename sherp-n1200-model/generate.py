@@ -68,8 +68,9 @@ N20_W, N20_H, N20_L = 12.0, 10.0, 24.0
 SHAFT_R = 1.5
 ORING_R, ORING_D = 3.1, 1.4          # 3 x 6 x 1.5 O-ring pocket in the wall
 
-# winch: INJORA INJS2065-360 (23 x 13 x 25.8) in a flooded bow pocket
-WINCH_POCKET = (66.0, 100.0, -15.0, 15.0, 29.5, 43.0)
+# winch: EY RC 1:24 all-metal winch "Style C" (38.3 mm wide, 2-wire DC motor),
+# sits in a pocket in the bow under the front step, opening forwards
+WINCH_POCKET = (70.0, 100.0, -20.6, 20.6, 29.6, 46.6)
 
 # --------------------------------------------------------------------------
 # Upper body (cab) - glued to the deck lid, lifts off as one unit.
@@ -257,7 +258,9 @@ def make_hull():
     px0, px1, py0, py1, pz0, pz1 = WINCH_POCKET
     add.append(box(px0 - 2.0, 91.0, py0 - 2.0, py1 + 2.0, HULL_BOTTOM + 0.5, pz1 + 2.0) ^ HULL_OUTER)
     # front step (orange step-plate on the real one) and rear bumper / tow hitch
-    add.append(box(86.0, 94.0, -24.0, 24.0, 44.0, 47.0))
+    add.append(box(86.0, 94.0, -24.0, 24.0, 47.0, 50.0))
+    # winch tray / front bumper the winch screws down onto (2 x M2 holes)
+    add.append(box(WINCH_POCKET[0], 93.5, -22.6, 22.6, HULL_BOTTOM, HULL_BOTTOM + 2.3))
     add.append(box(-93.0, -88.0, -24.0, 24.0, 33.0, 38.0))
     # ledges that carry the electronics tray above the battery
     for s in (-1, 1):
@@ -281,7 +284,9 @@ def make_hull():
         y0, y1 = sorted((s * (HULL_HALF - HULL_WALL - 1), s * (HULL_HALF - HULL_WALL + ORING_D)))
         cut.append(cyl_y(y0, y1, x, AXLE_Z, ORING_R, 32))
     cut.append(box(*WINCH_POCKET))
-    cut.append(cyl_x(60.0, WINCH_POCKET[0] + 1, 0.0, 40.0, 1.5, 16))      # winch lead
+    for y in (-12.0, 12.0):
+        cut.append(cyl_z(82.0, y, HULL_BOTTOM - 1, HULL_BOTTOM + 3, 0.8, seg=12))
+    cut.append(cyl_x(60.0, WINCH_POCKET[0] + 1, 0.0, 43.0, 1.5, 16))      # winch lead
     # power button hole through the floor (12 mm IP67 latching button)
     cut.append(cyl_z(-66.0, 0.0, HULL_BOTTOM - 1, HULL_BOTTOM + 6, 6.1, seg=48))
     return hull - union(cut)
@@ -620,7 +625,7 @@ def printed_mass(man, density, wall=1.6, infill=0.10):
 
 
 HARDWARE_G = {
-    "4 x N20 gear motor": 40, "2S 1000 mAh LiPo": 55, "winch servo": 20,
+    "4 x N20 gear motor": 40, "2S 1000 mAh LiPo": 55, "EY RC winch + DRV8833": 21,
     "ESP32-S3 SuperMini": 3, "2 x TB6612 driver": 6, "5 V buck": 3,
     "USB-C 2S charger": 5, "IP67 button": 8, "4 x M3x40 screws": 8,
     "wire, LEDs, glue": 15,

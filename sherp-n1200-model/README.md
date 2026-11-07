@@ -51,9 +51,10 @@ The cab lifts off; the lower hull is sealed.
 - **RC drivetrain:** 4 × N20 metal-gear motors, one per wheel, in cradles
   in the hull. Each shaft has an **O-ring + silicone grease** seal where it
   passes through the wall.
-- **Winch:** a waterproof INJORA winch servo sits in a **flooded pocket in
-  the bow**, under the front step, like the real one. Only its lead goes
-  into the hull, through a glued hole.
+- **Winch:** the EY RC 1:24 metal winch sits in an **open pocket in the bow
+  on a bumper tray**, under the front step, like the real one. Only its lead
+  goes into the hull, through a glued hole. It isn't waterproof: grease it,
+  and rinse it in fresh water after swims (or keep it as a dry-land feature).
 - **Float check built into the design script.** Estimated all-up mass is
   **563 g**. Waterline is about **53 mm** above the ground, so the gasket
   sits **~11 mm above water** (about 250 mm on the real vehicle). The
@@ -101,8 +102,8 @@ high sales and good ratings. Pick the variant shown in **bold**.
 |---|---|---|---|
 | 1 | ESP32-S3 SuperMini (22.5 × 18 mm, Wi-Fi + BLE) | 1 (+1 spare) | https://www.aliexpress.com/item/1005010376539004.html (~$1.09) |
 | 2 | N20 metal-gear motor, **6 V 100 RPM**, 3 mm D shaft, *no* rear shaft | 4 (+1) | https://www.aliexpress.com/item/1005009004059913.html (~$2.62, 10k+ sold) |
-| 3 | TB6612FNG dual motor driver (one per side) | 2 | https://www.aliexpress.com/item/1005007791592995.html (~$1.99, 10k+ sold) |
-| 4 | INJORA tow kit with **INJS2065-360 winch servo** (waterproof, 4.8–8.4 V) | 1 | https://www.aliexpress.com/item/1005010215527300.html (~$31.81) |
+| 3 | TB6612FNG dual motor driver (one per side + one for the winch) | **3** | https://www.aliexpress.com/item/1005007791592995.html (~$1.99, 10k+ sold) |
+| 4 | **EY RC all-metal winch, 1:24 "Style C"** (38.3 mm wide, ~19 g, 2-wire DC motor, hook + fairlead) | 1 | https://www.aliexpress.com/item/1005012696674898.html (~AU$16, 5★); choose the 1:24 / Style C option |
 | 5 | 2S 7.4 V 1000 mAh LiPo (≤ 58 × 34 × 16 mm) | 1 | https://www.aliexpress.com/item/1005010142445384.html (~$4.69) |
 | 6 | USB-C 2S **8.4 V** charge module with balance support | 1 | https://www.aliexpress.com/item/1005007170943596.html (~$3.39, 10k+ sold) |
 | 7 | Mini560 buck, **5 V** fixed (for the ESP32 and LEDs) | 1 | https://www.aliexpress.com/item/1005012462207466.html (~$1.09) |
@@ -115,13 +116,13 @@ high sales and good ratings. Pick the variant shown in **bold**.
 | 14 | 30 AWG silicone wire | 1 | https://www.aliexpress.com/item/1005001626937991.html (~$4.26) |
 | 15 | Resistors 1/8 W: 47 Ω (white), 100 Ω (red/orange); 100 k + 47 k (battery sense) | – | |
 
-Display-only build: skip parts 2, 3 and 10–11, and wire the lights and winch
+Display-only build: skip part 2, buy 1 TB6612 (winch only), skip 10–11, and wire the lights and winch
 the same way.
 
 ## Wiring (ESP32-S3 SuperMini)
 ```
 2S LiPo ── charge module (USB-C, balance) ── IP67 latching button ──┬── TB6612 #1 + #2  VM
-                                                                     ├── winch servo  + (7.4 V is in its range)
+                                                                     ├── (TB6612 #3 VM for the winch is fed from the 5 V supply below)
                                                                      └── Mini560 5 V ──► ESP32 5V pin, TB6612 VCC
 GPIO1  headlights     2 × white   47 Ω each
 GPIO2  tail / BRAKE   2 × red    100 Ω  (dim = tail, bright = brake, automatic)
@@ -130,7 +131,7 @@ GPIO4  spotlights     2 × white   47 Ω  (on the light bar ends)
 GPIO5  rear work / REVERSE lights 2 × white 47 Ω  (come on automatically in reverse)
 GPIO6  fridge         1 × white   47 Ω
 GPIO7  battery sense  100 k / 47 k divider from the battery +
-GPIO8  winch servo signal
+GPIO8  winch IN1 + GPIO43 winch IN2 (TB6612 #3: AIN1/AIN2, PWMA=STBY=3V3, VM = the 5 V supply - RC winches run at ~4.8-6 V)
 GPIO9  left  motors IN1   GPIO10 left  motors IN2   (TB6612 #1: AIN1=BIN1, AIN2=BIN2, PWMA=PWMB=STBY=3V3)
 GPIO11 right motors IN1   GPIO12 right motors IN2   (TB6612 #2 the same)
 GPIO13 amber beacon   1 × orange 100 Ω
@@ -169,8 +170,9 @@ Seal each lid hole with a dab of silicone once the wires are through.
    cradle.
 3. **Wheels:** push the tyre over the hub keys, press the hub onto the N20
    D-shaft (a drop of CA), then press in the cap.
-4. **Winch:** put the servo in the bow pocket with its lead through the
-   small hole into the hull, and seal the hole with silicone.
+4. **Winch:** screw the winch onto the bumper tray (2 × M2) and feed its
+   lead through the small hole into the hull, then seal the hole with
+   silicone.
 5. **Power and electronics:**
    - Fit the latching button through the floor (O-ring and nut from inside).
    - Battery goes in the corral.
