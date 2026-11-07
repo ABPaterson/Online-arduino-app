@@ -1,4 +1,4 @@
-# SHERP N 1200 – 1:22 AirLoom model (v0.3: display + outdoor, floating RC)
+# SHERP N 1200 – 1:22 AirLoom model (v0.4: display + outdoor, floating RC)
 
 A 3D-printable SHERP N 1200 built to demonstrate AirLoom. One hull works two
 ways:
@@ -10,12 +10,31 @@ The cab lifts off; the lower hull is sealed.
 
 ![front](renders/iso_front.png)
 
+**Checked against the SHERP spec-sheet drawing:**
+![compare](renders/compare_drawing_vs_model.png)
+
 | | |
 |---|---|
 | ![side](renders/side.png) | ![rear](renders/iso_rear.png) |
 | ![exploded](renders/exploded_cab_off.png) | ![cutaway](renders/cutaway.png) |
 
-## What's new in v0.3
+## What's new in v0.4 (body redrawn from the spec-sheet drawing)
+- The **wheels now sit in the body**, as on the real vehicle:
+  - **deep wheel arches**
+  - **flared fender ledges** over the tyres (in the front view the tyres
+    tuck underneath them)
+  - lower cab sides that angle in to the narrow hull
+  - a vent panel that dips between the wheels
+  - nose and tail that come down to ~1.5 m
+- Cab width corrected to ~2060 mm (82 % of overall width, from the drawing).
+- Front door / windscreen face raked back ~20°, with tall corner windows
+  either side of the windscreen.
+- Track corrected to ~88 mm (real 1900 mm).
+- Conduits re-routed: they follow the raked front corners, cross over above
+  the fenders, then drop inside the hull walls to the lid. All checked clear.
+- Fenders and arches print without supports (cab prints roof-down).
+
+## v0.3 changes (still apply)
 - **Body matched to the SHERP spec sheet and photos** (sherpaustralia.com and
   sherpglobal.com):
   - the wide cab sits over the tyres and the narrow hull runs between them
@@ -36,8 +55,8 @@ The cab lifts off; the lower hull is sealed.
   the bow**, under the front step, like the real one. Only its lead goes
   into the hull, through a glued hole.
 - **Float check built into the design script.** Estimated all-up mass is
-  **553 g**. Waterline is about **52 mm** above the ground, so the gasket
-  sits **~12 mm above water** (about 260 mm on the real vehicle). The
+  **563 g**. Waterline is about **53 mm** above the ground, so the gasket
+  sits **~11 mm above water** (about 250 mm on the real vehicle). The
   sealed hull and air-filled TPU tyres provide the buoyancy.
 - **Bambu Studio project file** with Bambu's own A1, PLA Basic and
   TPU 95A HF settings, laid out on 3 plates.
@@ -46,14 +65,14 @@ The cab lifts off; the lower hull is sealed.
 | | Real | Model |
 |---|---|---|
 | Length | 4002 mm | 182 mm body / 187 mm incl. step |
-| Width | 2520 mm | 120 mm over tyres, cab 102 mm |
+| Width | 2520 mm | 117 mm over tyres, cab 94 mm (114 mm over the fenders) |
 | Height | 2825 mm (no A/C) | 128 mm roof / 139 mm with roof gear |
-| Wheelbase / track | 2118 / 1900 mm | 96 / 89 mm |
+| Wheelbase / track | 2118 / 1900 mm | 96 / 88 mm |
 | Tyres | 1800 × 600 mm | 81 × 27 mm |
 | Clearance | 600 mm | 27 mm |
 
 ## Print files (`3mf/`)
-**`SHERP N1200 v0.3 - A1 project (3 plates, PLA + TPU).3mf`**: open it in
+**`SHERP N1200 v0.4 - A1 project (3 plates, PLA + TPU).3mf`**: open it in
 Bambu Studio. Printer, process and filaments are already set.
 
 | Plate | Filament | Parts |
@@ -62,7 +81,7 @@ Bambu Studio. Printer, process and filaments are already set.
 | 2 Details | PLA (slot 1) | Deck lid, 4 hubs, 4 caps, electronics tray, light bar, A/C, fridge, beacon, 2 seats |
 | 3 Tyres + gasket | **TPU 95A HF** (slot 2) | 4 tyres, rim gasket |
 
-`SHERP N1200 v0.3 - ASSEMBLED view only.3mf` is for viewing only. Every
+`SHERP N1200 v0.4 - ASSEMBLED view only.3mf` is for viewing only. Every
 part is also in `stl/`.
 
 **Settings:**

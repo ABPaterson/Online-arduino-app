@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SHERP N 1200 - 1:22 scale AirLoom model, v0.3
+SHERP N 1200 - 1:22 scale AirLoom model, v0.4
 One hull for both a static display and an outdoor, floating RC version.
 
   * Sealed lower hull (tub) holds 4 x N20 drive motors (skid steer like the
@@ -31,7 +31,7 @@ import bambu_3mf
 
 M = mf.Manifold
 CS = mf.CrossSection
-VERSION = "v0.3"
+VERSION = "v0.4"
 SEG = 48
 
 # --------------------------------------------------------------------------
@@ -61,7 +61,7 @@ HULL_PROFILE = [(-80.0, HULL_BOTTOM), (72.0, HULL_BOTTOM), (89.0, 40.0),
                 (91.0, 50.0), (91.0, RIM_Z), (-91.0, RIM_Z), (-91.0, 40.0)]
 
 BOLT_X, BOLT_Y = 60.0, 23.0          # 4 x M3 x 40 from underneath
-WHEEL_Y0 = HULL_HALF + 2.0           # inner face of the wheel (after spacer boss)
+WHEEL_Y0 = HULL_HALF + 0.5           # end of the spacer boss (track ~88 mm, real 1900 mm)
 
 # N20 gear motor: 12 x 10 body, 24 long (gearbox + motor), 3 mm D shaft
 N20_W, N20_H, N20_L = 12.0, 10.0, 24.0
@@ -72,32 +72,74 @@ ORING_R, ORING_D = 3.1, 1.4          # 3 x 6 x 1.5 O-ring pocket in the wall
 WINCH_POCKET = (66.0, 100.0, -15.0, 15.0, 29.5, 43.0)
 
 # --------------------------------------------------------------------------
-# Upper body (cab) - glued to the deck lid, lifts off as one unit
+# Upper body (cab) - glued to the deck lid, lifts off as one unit.
+# Shape taken from the dimension drawing on the SHERP N 1200 spec sheet:
+#   side view : body wraps down round the wheels - deep wheel arches, nose and
+#               tail come down to ~1.5 m, vent panel dips between the wheels
+#   front view: cab ~82 % of the overall width, sides angle inward below the
+#               windows (shoulder) to the narrow hull, chamfered roof edges
+#   front     : door/windscreen face raked back ~20 deg
 # --------------------------------------------------------------------------
-CAB_HALF = 51.0             # wide cab over the tyres (~2250 mm real)
+CAB_HALF = 47.0             # cab ~2060 mm wide (drawing: 82 % of 2520)
 CAB_WALL = 1.6
-SHELF_Z = 85.0              # underside of the cab over the tyres
+OUTER_Y0 = HULL_HALF + 0.3  # side pods start just outside the hull walls
+SHOULDER_Z = 85.0           # below the fender the cab sides angle in to the hull
+SHOULDER_HULL_Z = 54.0      # ...meeting the hull line here (drawing: ~1.2 m)
+FENDER_Y = 57.0             # fender ledge reaches out over the tyres
+FENDER_Z = (83.5, 94.5)     # underside / top where it meets the cab side
 ROOF_Z = REAL["height"] / SCALE   # 128.4
-SPINE_TOP = 88.0
+ROOF_CHAMFER = 3.0
+NOSE = (91.0, 69.0)         # bottom of the front door (x, z)
+TAIL_Z = 69.0               # bottom of the rear face
+RAKE = 0.358                # front face: 20 deg back from vertical
+ARCH_R = 42.4               # wheel arch radius (tyre 40.6 + clearance)
+POD_Z = 54.0               # vent panel dips between the wheels
 
 
-def cab_front_x(z):
-    """Front face of the wide cab: slight rake, 86 at the shelf to 80 at z=122."""
-    return 86.0 - (z - SHELF_Z) * 6.0 / 37.0
+def front_x(z):
+    """Front (door / windscreen) face of the cab."""
+    return NOSE[0] - (z - NOSE[1]) * RAKE
 
 
-CAB_PROFILE = [(-91.0, SHELF_Z), (cab_front_x(SHELF_Z), SHELF_Z), (cab_front_x(122.0), 122.0),
-               (76.0, ROOF_Z), (-87.0, ROOF_Z), (-91.0, ROOF_Z - 4.4)]
-SPINE_PROFILE = [(-91.0, LID_Z1), (90.5, LID_Z1), (89.0, SPINE_TOP + 1), (-91.0, SPINE_TOP + 1)]
+def _arc_pts(xc, zc, r, a0, a1, n=14):
+    return [(xc + r * math.cos(math.radians(a0 + (a1 - a0) * i / n)),
+             zc + r * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+
+
+def side_silhouette():
+    """Side view of the cab's side pods (counter-clockwise, x forward, z up)."""
+    a_tip = math.degrees(math.asin((NOSE[1] - AXLE_Z) / ARCH_R))
+    a_pod = math.degrees(math.asin((POD_Z - AXLE_Z) / ARCH_R))
+    rear = _arc_pts(-AXLE_X, AXLE_Z, ARCH_R, 180 - a_tip, a_pod)        # rear arch, rear to front
+    front = _arc_pts(AXLE_X, AXLE_Z, ARCH_R, 180 - a_pod, a_tip)        # front arch, rear to front
+    pts = [(-91.0, TAIL_Z)] + rear + front + [NOSE, (front_x(ROOF_Z), ROOF_Z),
+                                              (-87.0, ROOF_Z), (-91.0, ROOF_Z - 4.4)]
+    return pts
+
+
+def centre_silhouette():
+    """Side view of the centre section (over the hull): from the lid up."""
+    return [(-91.0, LID_Z1), (90.5, LID_Z1), NOSE, (front_x(ROOF_Z), ROOF_Z),
+            (-87.0, ROOF_Z), (-91.0, ROOF_Z - 4.4)]
+
 
 LED_POCKET = (2.4, 1.6, 1.0)
 WIRE_R = 0.9
 DUCT_OR, DUCT_IR = 3.0, 1.7          # 3.4 mm bore conduits
-FRONT_DUCT_X, REAR_DUCT_X = 73.0, -84.0
-DUCT_POD_Y = 40.0                    # conduits sit behind the headlights/tail lights
-DUCT_DROP_Y = 24.6                   # drop down inside the spine to the lid
-LIGHT_Z = 97.0                       # headlights / tail lights height
+DUCT_POD_Y = CAB_HALF - CAB_WALL - DUCT_OR + 1.1   # 43.5: in the cab corners
+DUCT_DROP_Y = 24.6                   # drop down inside the hull walls to the lid
+DUCT_TURN_Z = 89.5                   # conduits cross to the middle above the shoulder
+FRONT_DUCT_OFF = (CAB_WALL + DUCT_OR + 0.3) / math.cos(math.atan(RAKE))
+REAR_DUCT_X = -91.0 + CAB_WALL + DUCT_OR + 0.2     # -86.2
+LIGHT_Z = 96.0                       # headlights / tail lights
 WORKLIGHT_Z = 121.0
+
+
+def front_duct_x(z):
+    return front_x(z) - FRONT_DUCT_OFF
+
+
+RACK_X = front_duct_x(ROOF_Z)        # light bar sits over the front conduit exits
 
 FRIDGE = (32.0, 18.0, 20.0)
 FRIDGE_POS = (-66.0, 0.0)
@@ -147,11 +189,20 @@ def arc(c, r, a0, a1, n=8):
              c[1] + r * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
 
 
-def conduit_path(x, s):
-    """Roof -> down the corner -> across the shelf -> down the spine -> lid."""
+def conduit_path(front, s):
+    """Roof -> down the cab corner (following the raked front, or the vertical
+    rear) -> across to the middle above the shoulder -> down inside the hull
+    wall line -> through the lid."""
     r = 6.0
-    zc = SHELF_Z + CAB_WALL + DUCT_OR            # 89.6, sits on the shelf
-    pts = [(x, s * DUCT_POD_Y, ROOF_Z + 3.0), (x, s * DUCT_POD_Y, zc + r)]
+    zc = DUCT_TURN_Z
+    pts = []
+    if front:
+        for z in np.linspace(ROOF_Z + 3.0, zc + r, 6):
+            pts.append((front_duct_x(z), s * DUCT_POD_Y, z))
+        x = front_duct_x(zc + r)
+    else:
+        x = REAR_DUCT_X
+        pts += [(x, s * DUCT_POD_Y, ROOF_Z + 3.0), (x, s * DUCT_POD_Y, zc + r)]
     for (u, v) in arc((DUCT_POD_Y - r, zc + r), r, 0, -90)[1:]:
         pts.append((x, s * u, v))
     pts.append((x, s * (DUCT_DROP_Y + r), zc))
@@ -159,6 +210,10 @@ def conduit_path(x, s):
         pts.append((x, s * u, v))
     pts.append((x, s * DUCT_DROP_Y, LID_Z1 - 3.0))
     return pts
+
+
+def duct_bottom_x(front):
+    return front_duct_x(DUCT_TURN_Z + 6.0) if front else REAR_DUCT_X
 
 
 # --------------------------------------------------------------------------
@@ -255,9 +310,9 @@ def make_lid():
     for x in (-BOLT_X, BOLT_X):
         for y in (-BOLT_Y, BOLT_Y):
             cut.append(cyl_z(x, y, LID_Z0 - 1, LID_Z1 + 7, 1.25, seg=20))   # M3 self-tap
-    for x in (FRONT_DUCT_X, REAR_DUCT_X):
+    for front in (True, False):
         for s in (-1, 1):
-            cut.append(cyl_z(x, s * DUCT_DROP_Y, LID_Z0 - 1, LID_Z1 + 1, 1.9, seg=20))
+            cut.append(cyl_z(duct_bottom_x(front), s * DUCT_DROP_Y, LID_Z0 - 1, LID_Z1 + 1, 1.9, seg=20))
     cut.append(cyl_z(FRIDGE_LED[0], FRIDGE_LED[1], LID_Z0 - 1, LID_Z1 + 1, 1.2, seg=16))
     cut.append(cyl_z(SPARE_HOLE[0], SPARE_HOLE[1], LID_Z0 - 1, LID_Z1 + 1, 2.5, seg=24))
     return lid - union(cut)
@@ -266,85 +321,140 @@ def make_lid():
 # --------------------------------------------------------------------------
 # UPPER BODY (cab)
 # --------------------------------------------------------------------------
-CAB_CS = CS([CAB_PROFILE])
-SPINE_CS = CS([SPINE_PROFILE])
+def front_prism(pts_yz, x0=-120.0, x1=120.0):
+    """Extrude a polygon drawn in the Y-Z plane along X."""
+    return CS([pts_yz]).extrude(x1 - x0).rotate([90, 0, 90]).translate([x0, 0, 0])
+
+
+def shoulder_cut(grow=0.0):
+    """Region below the 45 deg shoulder (both sides), outside the hull line."""
+    out = []
+    for s in (1, -1):
+        y0 = OUTER_Y0 - 0.01
+        k = (SHOULDER_Z - SHOULDER_HULL_Z) / (CAB_HALF - OUTER_Y0)
+        pts = [(y0, -5.0), (CAB_HALF + 0.01, -5.0), (CAB_HALF + 0.01, SHOULDER_Z + grow),
+               (y0, SHOULDER_HULL_Z + grow)]
+        if s < 0:
+            pts = [(-y, z) for y, z in reversed(pts)]
+        out.append(front_prism(pts))
+    return union(out)
+
+
+def roof_chamfer_cut(grow=0.0):
+    out = []
+    for s in (1, -1):
+        y0 = CAB_HALF - ROOF_CHAMFER - grow * 1.0
+        pts = [(y0, ROOF_Z + 5), (y0, ROOF_Z + 0.01 - grow * 0.0), (CAB_HALF + 0.01, ROOF_Z - ROOF_CHAMFER - grow),
+               (CAB_HALF + 9, ROOF_Z - ROOF_CHAMFER - grow), (CAB_HALF + 9, ROOF_Z + 5)]
+        pts = [(y, z) for y, z in pts]
+        if s < 0:
+            pts = [(-y, z) for y, z in reversed(pts)]
+        out.append(front_prism(pts))
+    return union(out)
+
+
+def fender_quad(s):
+    """Front-view section of the flared fender ledge (45 deg top, flat underside)."""
+    q = [(CAB_HALF - 0.5, FENDER_Z[0]), (FENDER_Y, FENDER_Z[0]),
+         (FENDER_Y, FENDER_Z[0] + 1.0), (CAB_HALF - 0.5, FENDER_Z[1])]
+    return q if s > 0 else [(-y, z) for y, z in reversed(q)]
+
+
+def fenders(inner=False):
+    sil = CS([side_silhouette()])
+    if inner:
+        sil = sil.offset(-CAB_WALL, mf.JoinType.Miter)
+    length = side_prism_cs(sil, -70, 70)
+    out = []
+    for s in (1, -1):
+        cs = CS([fender_quad(s)])
+        if inner:
+            cs = cs.offset(-CAB_WALL, mf.JoinType.Miter)
+            cs = cs + CS([[(s * (CAB_HALF - 2.5), FENDER_Z[0] + 1.6), (s * (CAB_HALF + 0.5), FENDER_Z[0] + 1.6),
+                           (s * (CAB_HALF + 0.5), FENDER_Z[1] - 4.0), (s * (CAB_HALF - 2.5), FENDER_Z[1] - 4.0)]
+                          if s > 0 else
+                          [(s * (CAB_HALF + 0.5), FENDER_Z[0] + 1.6), (s * (CAB_HALF - 2.5), FENDER_Z[0] + 1.6),
+                           (s * (CAB_HALF - 2.5), FENDER_Z[1] - 4.0), (s * (CAB_HALF + 0.5), FENDER_Z[1] - 4.0)]])
+        out.append(CS.extrude(cs, 240).rotate([90, 0, 90]).translate([-120, 0, 0]) ^ length)
+    return union(out)
+
+
+def cab_outer():
+    sil = CS([side_silhouette()])
+    pods = [side_prism_cs(sil, OUTER_Y0, CAB_HALF), side_prism_cs(sil, -CAB_HALF, -OUTER_Y0)]
+    centre = side_prism(centre_silhouette(), -OUTER_Y0, OUTER_Y0)
+    return union(pods + [centre]) - shoulder_cut() - roof_chamfer_cut() + fenders()
+
+
+def cab_inner():
+    sil_in = CS([side_silhouette()]).offset(-CAB_WALL, mf.JoinType.Miter)
+    body = side_prism_cs(sil_in, -CAB_HALF + CAB_WALL, CAB_HALF - CAB_WALL)
+    body = body - shoulder_cut(CAB_WALL * 1.414) - roof_chamfer_cut(CAB_WALL * 1.414)
+    # keep a wall between the side pods and the hull below the lid
+    body = body - (box(-120, 120, -OUTER_Y0 - CAB_WALL, OUTER_Y0 + CAB_WALL, 0, LID_Z1) -
+                   box(-120, 120, -OUTER_Y0 + HULL_WALL, OUTER_Y0 - HULL_WALL, 0, LID_Z1 + 1))
+    body = body + fenders(inner=True)
+    cen = [(-91.0 + HULL_WALL, LID_Z1 - 2), (front_x(LID_Z1) - HULL_WALL - 1.5, LID_Z1 - 2),
+           (front_x(NOSE[1] + 12) - 3.0, NOSE[1] + 12), (-91.0 + HULL_WALL, NOSE[1] + 12)]
+    centre = side_prism(cen, -OUTER_Y0 + HULL_WALL, OUTER_Y0 - HULL_WALL)
+    return body + centre
 
 
 def make_cab():
-    outer = side_prism_cs(CAB_CS, -CAB_HALF, CAB_HALF) + \
-        side_prism_cs(SPINE_CS, -HULL_HALF, HULL_HALF)
-    cab_in = side_prism_cs(CAB_CS.offset(-CAB_WALL, mf.JoinType.Miter),
-                           -CAB_HALF + CAB_WALL, CAB_HALF - CAB_WALL)
-    spine_in_pts = [(-91 + HULL_WALL, LID_Z1 - 1), (90.5 - HULL_WALL, LID_Z1 - 1),
-                    (89.0 - HULL_WALL, SPINE_TOP + 3), (-91 + HULL_WALL, SPINE_TOP + 3)]
-    spine_in = side_prism(spine_in_pts, -HULL_HALF + HULL_WALL, HULL_HALF - HULL_WALL)
-    shell = outer - cab_in - spine_in
-
+    cab = cab_outer() - cab_inner()
     add = []
-    for x in (FRONT_DUCT_X, REAR_DUCT_X):
+    for front in (True, False):
         for s in (-1, 1):
-            add.append(capsule_chain(conduit_path(x, s), DUCT_OR) ^
-                       box(-120, 120, -60, 60, LID_Z1, ROOF_Z))
-    cab = shell + union(add)
+            add.append(capsule_chain(conduit_path(front, s), DUCT_OR) ^ cab_outer())
+    cab = cab + union(add)
 
     cut = []
-    for x in (FRONT_DUCT_X, REAR_DUCT_X):
+    for front in (True, False):
         for s in (-1, 1):
-            cut.append(capsule_chain(conduit_path(x, s), DUCT_IR, 16))
-    # side windows (only through the side walls, conduits are safe)
-    wins = [
-        [(52.0, 96.0), (cab_front_x(96.0) - 6.0, 96.0), (cab_front_x(118.0) - 6.0, 118.0), (52.0, 118.0)],
-        [(8.0, 96.0), (34.0, 96.0), (34.0, 118.0), (8.0, 118.0)],
-        [(-30.0, 96.0), (-4.0, 96.0), (-4.0, 118.0), (-30.0, 118.0)],
-    ]
+            cut.append(capsule_chain(conduit_path(front, s), DUCT_IR, 16))
+    # side windows: cab door window (follows the rake) + two rear windows
+    wz0, wz1 = 96.5, 118.0
+    wins = [[(33.0, wz0), (front_x(wz0) - 11.0, wz0), (front_x(wz1) - 11.0, wz1), (33.0, wz1)],
+            [(-26.0, wz0), (10.8, wz0), (10.8, wz1), (-26.0, wz1)],
+            [(-72.4, wz0), (-35.5, wz0), (-35.5, wz1), (-72.4, wz1)]]
     for w in wins:
         cut.append(side_prism(w, CAB_HALF - 3.0, CAB_HALF + 3.0))
         cut.append(side_prism(w, -CAB_HALF - 3.0, -CAB_HALF + 3.0))
-    # windscreen in the front door
-    z0, z1 = 94.0, 119.0
-    ws = [(cab_front_x(z0) - 5, z0), (cab_front_x(z0) + 5, z0),
-          (cab_front_x(z1) + 5, z1), (cab_front_x(z1) - 5, z1)]
-    cut.append(side_prism(ws, -19.0, 19.0))
-    # small windows in the front corner pods (above the headlights)
-    for s in (-1, 1):
-        y0, y1 = sorted((s * 30.0, s * 47.0))
-        zz0, zz1 = 104.0, 118.0
-        p = [(cab_front_x(zz0) - 5, zz0), (cab_front_x(zz0) + 5, zz0),
-             (cab_front_x(zz1) + 5, zz1), (cab_front_x(zz1) - 5, zz1)]
-        cut.append(side_prism(p, y0, y1))
-    # rear door window
-    cut.append(box(-96.0, -88.0, -14.0, 14.0, 100.0, 120.0))
-    # headlights (front of the pods), tail lights and work lights (rear)
+
+    def on_face(z0, z1, depth_in=5.0, depth_out=5.0):
+        return [(front_x(z0) - depth_in, z0), (front_x(z0) + depth_out, z0),
+                (front_x(z1) + depth_out, z1), (front_x(z1) - depth_in, z1)]
+    cut.append(side_prism(on_face(93.0, 121.0), -18.0, 18.0))                    # windscreen
+    for s in (-1, 1):                                                             # corner windows
+        y0, y1 = sorted((s * 24.0, s * 38.0))
+        cut.append(side_prism(on_face(99.0, 119.0), y0, y1))
+    cut.append(box(-96.0, -88.0, -14.0, 14.0, 98.0, 121.0))                      # rear door window
+    # lights: headlights on the front corners, tail + work lights on the rear
     for s in (-1, 1):
         y = s * DUCT_POD_Y
-        fx = cab_front_x(LIGHT_Z)
-        cut.append(box(fx - 0.5, fx + 5, y - 3.0, y + 3.0, LIGHT_Z - 2.2, LIGHT_Z + 2.2))
-        cut.append(box(fx - 0.5 - LED_POCKET[2], fx + 5, y - 1.2, y + 1.2, LIGHT_Z - 0.8, LIGHT_Z + 0.8))
-        cut.append(cyl_x(FRONT_DUCT_X, fx, y, LIGHT_Z, WIRE_R, 16))
-        cut.append(box(-96.0, -90.5, y - 2.5, y + 2.5, LIGHT_Z - 3.5, LIGHT_Z + 3.5))
-        cut.append(box(-96.0, -90.5 + LED_POCKET[2], y - 0.8, y + 0.8, LIGHT_Z - 1.2, LIGHT_Z + 1.2))
-        cut.append(cyl_x(-92.0, REAR_DUCT_X, y, LIGHT_Z, WIRE_R, 16))
-        cut.append(box(-96.0, -90.5, y - 3.5, y + 3.5, WORKLIGHT_Z - 2.5, WORKLIGHT_Z + 2.5))
-        cut.append(box(-96.0, -90.5 + LED_POCKET[2], y - 1.2, y + 1.2, WORKLIGHT_Z - 0.8, WORKLIGHT_Z + 0.8))
-        cut.append(cyl_x(-92.0, REAR_DUCT_X, y, WORKLIGHT_Z, WIRE_R, 16))
-    # front door outline (0.6 mm groove on the cab front)
-    for z in (93.0, 121.0):
-        cut.append(side_prism([(cab_front_x(z) - 0.6, z - 0.4), (cab_front_x(z) + 3, z - 0.4),
-                               (cab_front_x(z) + 3, z + 0.4), (cab_front_x(z) - 0.6, z + 0.4)], -22.0, 22.0))
+        fx = front_x(LIGHT_Z)
+        cut.append(side_prism(on_face(LIGHT_Z - 2.2, LIGHT_Z + 2.2, 0.5, 5), y - 3.0, y + 3.0))
+        cut.append(side_prism(on_face(LIGHT_Z - 0.8, LIGHT_Z + 0.8, 0.5 + LED_POCKET[2], 5), y - 1.2, y + 1.2))
+        cut.append(cyl_x(front_duct_x(LIGHT_Z), fx, y, LIGHT_Z, WIRE_R, 16))
+        for z, h, w in ((LIGHT_Z, 3.5, 2.5), (WORKLIGHT_Z, 2.5, 3.5)):
+            cut.append(box(-96.0, -90.5, y - w, y + w, z - h, z + h))
+            cut.append(box(-96.0, -90.5 + LED_POCKET[2], y - 1.2, y + 1.2, z - 1.0, z + 1.0))
+            cut.append(cyl_x(-92.0, REAR_DUCT_X, y, z, WIRE_R, 16))
+    # front door outline (0.6 mm groove)
+    for z in (NOSE[1] + 1.0, 121.5):
+        cut.append(side_prism(on_face(z - 0.4, z + 0.4, 0.6, 3), -22.0, 22.0))
     for y in (-22.0, 22.0):
-        cut.append(side_prism([(cab_front_x(SHELF_Z) - 0.6, SHELF_Z), (cab_front_x(SHELF_Z) + 3, SHELF_Z),
-                               (cab_front_x(121.4) + 3, 121.4), (cab_front_x(121.4) - 0.6, 121.4)],
-                              y - 0.4, y + 0.4))
+        cut.append(side_prism(on_face(NOSE[1] + 1.0, 121.9, 0.6, 3), y - 0.4, y + 0.4))
     # roof hatches (front and rear) as grooves
     for hx in (40.0, -50.0):
         cut.append(box(hx - 11, hx + 11, -11, 11, ROOF_Z - 0.6, ROOF_Z + 1) -
                    box(hx - 10.2, hx + 10.2, -10.2, 10.2, ROOF_Z - 1, ROOF_Z + 2))
-    # side vent grille on the rear module (orange panel on the real one)
+    # side vent panel between the wheels (orange on the real one)
     for s in (-1, 1):
-        for i in range(5):
-            z = 88.5 + i * 1.6
+        for i in range(4):
+            z = SHOULDER_Z + 1.2 + i * 1.6
             y0, y1 = sorted((s * (CAB_HALF - 0.6), s * (CAB_HALF + 1)))
-            cut.append(box(-50.0, -38.0, y0, y1, z, z + 0.7))
+            cut.append(box(-11.0, 11.0, y0, y1, z, z + 0.7))
     return cab - union(cut)
 
 
@@ -420,7 +530,7 @@ def make_tyre():
 # --------------------------------------------------------------------------
 # Roof and interior details
 # --------------------------------------------------------------------------
-RACK_LEN = 2 * (DUCT_POD_Y + 4.0)
+RACK_LEN = 2 * (DUCT_POD_Y + 2.0)
 
 
 def make_lightbar():
@@ -563,9 +673,9 @@ def build():
     asm = {
         "hull": p["hull"], "cab": p["cab"], "lid": p["lid"],
         "gasket": p["gasket"].translate([0, 0, RIM_Z]),
-        "lightbar": p["rack"].translate([FRONT_DUCT_X, 0, ROOF_Z]),
-        "aircon": p["aircon"].translate([46.0, 0, ROOF_Z]),
-        "beacon": p["beacon"].translate([REAR_DUCT_X, DUCT_POD_Y, ROOF_Z]),
+        "lightbar": p["rack"].translate([RACK_X, 0, ROOF_Z]),
+        "aircon": p["aircon"].translate([6.0, 0, ROOF_Z]),
+        "beacon": p["beacon"].translate([REAR_DUCT_X, DUCT_POD_Y - 1.5, ROOF_Z]),
         "fridge": p["fridge"].translate([FRIDGE_POS[0], FRIDGE_POS[1], LID_Z1]),
         "seat_l": p["seat"].translate([44.0, 12.0, LID_Z1]),
         "seat_r": p["seat"].translate([44.0, -12.0, LID_Z1]),
@@ -706,12 +816,21 @@ def render(asm, out_png):
     for name, elev, azim, items, zmax in jobs:
         fig = plt.figure(figsize=(10, 7.5), dpi=110)
         ax = fig.add_subplot(111, projection="3d")
+        # one collection for everything so faces are depth-sorted together
+        all_tris, all_cols = [], []
+        el, az = math.radians(elev), math.radians(azim)
+        view = np.array([math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)])
         for tm, col in meshes_of(items):
-            tris = tm.vertices[tm.faces]
-            shade = 0.45 + 0.55 * np.clip(tm.face_normals @ light, 0, 1)
+            keep = (tm.face_normals @ view) > -1e-6          # back-face culling
+            tris = tm.vertices[tm.faces][keep]
+            shade = 0.45 + 0.55 * np.clip(tm.face_normals[keep] @ light, 0, 1)
             base = np.array(matplotlib.colors.to_rgb(col))
-            ax.add_collection3d(Poly3DCollection(tris, facecolors=np.clip(base * shade[:, None], 0, 1),
-                                                 edgecolors="none", linewidths=0))
+            all_tris.append(tris)
+            all_cols.append(np.clip(base * shade[:, None], 0, 1))
+        pc = Poly3DCollection(np.concatenate(all_tris), facecolors=np.concatenate(all_cols),
+                              edgecolors="none", linewidths=0)
+        pc.set_zsort("average")
+        ax.add_collection3d(pc)
         ax.set_xlim(-80, 80); ax.set_ylim(-80, 80); ax.set_zlim(zmax - 160, zmax)
         ax.set_box_aspect((1, 1, 1))
         ax.view_init(elev=elev, azim=azim)
