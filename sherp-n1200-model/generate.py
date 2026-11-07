@@ -468,7 +468,6 @@ KEYS, KEY_H, KEY_W = 8, 1.0, 2.4
 TYRE_FIT = 0.05
 SPIGOT_R, SPIGOT_H = 12.0, 2.0
 TYRE_OD_R = TYRE_R - 0.3
-TYRE_BASE_R = TYRE_OD_R - 2.8        # deep paddle lugs (they propel it in water)
 TYRE_LEN = TYRE_W - HUB_FLANGE_T
 
 
@@ -497,29 +496,39 @@ def make_cap():
     for i in range(8):
         a = math.radians(45 * i)
         cap = cap + cyl_z(12.2 * math.cos(a), 12.2 * math.sin(a), 0, 0.7, 1.3, seg=16)
+    for r0, r1 in ((5.0, 5.6), (9.0, 9.6)):            # concentric rings on the disc
+        cap = cap - (cyl_z(0, 0, -1, 0.4, r1, seg=64) - cyl_z(0, 0, -2, 1, r0, seg=64))
     cap = cap - cyl_z(0, 0, -1, 0.5, 3.0, seg=32)
     return cap
 
 
+PADDLES = 24                 # real tyre: ~24-26 straight paddle blades
+PADDLE_T = 1.8               # blade thickness (~40 mm real)
+PADDLE_H = 3.4               # blade height above the carcass (~75 mm real)
+
+
 def make_tyre():
-    L, ch = TYRE_LEN, 5.0
-    rb, ro = TYRE_BASE_R, TYRE_OD_R
-    body = M.cylinder(ch, rb - ch, rb, 128) + \
-        M.cylinder(L - 2 * ch, rb, rb, 128).translate([0, 0, ch]) + \
-        M.cylinder(ch, rb, rb - ch, 128).translate([0, 0, L - ch])
-    lugs = []
-    n = 18
-    half = L / 2 - 0.6
-    for i in range(n):
-        for zc, ang in ((L / 4 + 0.2, 24.0), (3 * L / 4 - 0.2, -24.0)):   # chevron "V"
-            lug = box(-0.6, ro - rb, -1.8, 1.8, -half / 2 - 1.2, half / 2 + 1.2)
-            lug = lug.rotate([ang, 0, 0]).translate([rb, 0, zc])
-            lugs.append(lug.rotate([0, 0, 360.0 / n * i]))
-    envelope = cyl_z(0, 0, 0, L, ro + 0.01, seg=128) ^ (
-        cyl_z(0, 0, 0, 2.0, ro - 2.0, ro + 0.01, seg=128) +
-        cyl_z(0, 0, 2.0, L - 2.0, ro + 0.01, seg=128) +
-        cyl_z(0, 0, L - 2.0, L, ro + 0.01, ro - 2.0, seg=128))
-    tyre = body + (union(lugs) ^ envelope)
+    """SHERP-style balloon tyre: round carcass with straight paddle blades
+    across the tread that run down the shoulders as pointed teeth."""
+    L = TYRE_LEN
+    ro = TYRE_OD_R
+    rb = ro - PADDLE_H                       # carcass radius
+    rr = 7.0                                 # shoulder radius
+    # carcass profile (r, z): 45 deg start at the bed, then a quarter round
+    prof = [(HUB_R - 1.0, 0.0), (rb - rr * (2 - math.sqrt(2)) - 2.05, 0.0)]
+    for a in np.linspace(-45, 0, 7):
+        prof.append((rb - rr + rr * math.cos(math.radians(a)), rr + rr * math.sin(math.radians(a))))
+    for a in np.linspace(0, 45, 7):
+        prof.append((rb - rr + rr * math.cos(math.radians(a)), L - rr + rr * math.sin(math.radians(a))))
+    prof += [(rb - rr * (2 - math.sqrt(2)) - 2.05, L), (HUB_R - 1.0, L)]
+    body = CS([prof]).revolve(128)
+    # one paddle blade, in the (r, z) plane, extruded tangentially
+    blade = [(rb - 6.5, 0.4), (rb - 2.5, 0.4), (ro - 1.4, 2.6), (ro, 4.5),
+             (ro, L - 4.5), (ro - 1.4, L - 2.6), (rb - 2.5, L - 0.4), (rb - 6.5, L - 0.4)]
+    # local: x = radius, y = tangential, z = axial
+    p = CS([blade]).extrude(PADDLE_T).rotate([90, 0, 0]).translate([0, PADDLE_T / 2, 0])
+    paddles = union([p.rotate([0, 0, 360.0 / PADDLES * k]) for k in range(PADDLES)])
+    tyre = body + paddles
     bore = cyl_z(0, 0, -1, L + 1, HUB_R - TYRE_FIT, seg=96)
     for i in range(KEYS):
         bore = bore + box(HUB_R - 1, HUB_R + KEY_H + 0.25, -KEY_W / 2 - 0.2, KEY_W / 2 + 0.2,
