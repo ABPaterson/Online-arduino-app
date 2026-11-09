@@ -18,6 +18,17 @@ The cab lifts off; the lower hull is sealed.
 | ![side](renders/side.png) | ![rear](renders/iso_rear.png) |
 | ![exploded](renders/exploded_cab_off.png) | ![cutaway](renders/cutaway.png) |
 
+## Latest tweaks
+- **Roof line:** the front quarter of the roof now slopes down ~9° to the
+  windscreen, like the real cab. The light bar sits on that slope. The front
+  face rake is ~17°, and the side windows sit lower, as in the drawing.
+- **The cab now needs a little support:** the Bambu project turns on *tree
+  supports, build plate only* for the cab alone (for the sloped roof).
+  Nothing else needs support.
+- **Tyres:** real SHERP pattern with 24 straight paddle blades and pointed
+  shoulder teeth. The wheel disc has concentric rings.
+- **Winch:** EY RC 1:24 metal winch on a bumper tray in the bow pocket.
+
 ## What's new in v0.4 (body redrawn from the spec-sheet drawing)
 - The **wheels now sit in the body**, as on the real vehicle:
   - **deep wheel arches**

@@ -98,7 +98,7 @@ def _mesh_xml(man):
 
 
 def write_project(path, plates, title, overrides=None):
-    """plates: list of (plate_name, [(object_name, manifold_on_bed, extruder)])
+    """plates: list of (plate_name, [(object_name, manifold_on_bed, extruder[, settings])])
     where each manifold is already positioned inside 0..256 on its plate."""
     n = len(plates)
     model = ['<?xml version="1.0" encoding="UTF-8"?>',
@@ -115,7 +115,9 @@ def write_project(path, plates, title, overrides=None):
     for pi, (pname, objs) in enumerate(plates):
         ox, oy = plate_origin(pi, n)
         inst = []
-        for name, man, extruder in objs:
+        for item in objs:
+            name, man, extruder = item[:3]
+            extra = item[3] if len(item) > 3 else {}
             oid += 1
             model.append('  <object id="%d" name="%s" type="model">%s</object>'
                          % (oid, escape(name), _mesh_xml(man)))
@@ -125,11 +127,15 @@ def write_project(path, plates, title, overrides=None):
                 '  <object id="%d">\n'
                 '    <metadata key="name" value="%s"/>\n'
                 '    <metadata key="extruder" value="%d"/>\n'
+                '%s'
                 '    <part id="1" subtype="normal_part">\n'
                 '      <metadata key="name" value="%s"/>\n'
                 '      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>\n'
                 '    </part>\n'
-                '  </object>' % (oid, escape(name), extruder, escape(name)))
+                '  </object>' % (oid, escape(name), extruder,
+                                 "".join('    <metadata key="%s" value="%s"/>\n' % (k, escape(str(v)))
+                                         for k, v in extra.items()),
+                                 escape(name)))
             inst.append(oid)
             assemble.append('   <assemble_item object_id="%d" instance_id="0" '
                             'transform="%s" offset="0 0 0" />' % (oid, tf))

@@ -86,13 +86,15 @@ CAB_WALL = 1.6
 OUTER_Y0 = HULL_HALF + 0.3  # side pods start just outside the hull walls
 SHOULDER_Z = 85.0           # below the fender the cab sides angle in to the hull
 SHOULDER_HULL_Z = 54.0      # ...meeting the hull line here (drawing: ~1.2 m)
-FENDER_Y = 57.0             # fender ledge reaches out over the tyres
-FENDER_Z = (83.5, 94.5)     # underside / top where it meets the cab side
+FENDER_Y = 55.5             # fender ledge reaches out over the tyres
+FENDER_Z = (83.5, 92.0)     # underside / top where it meets the cab side
 ROOF_Z = REAL["height"] / SCALE   # 128.4
 ROOF_CHAMFER = 3.0
-NOSE = (91.0, 69.0)         # bottom of the front door (x, z)
+NOSE = (91.0, 67.5)         # bottom of the front door (x, z)
+CAB_ROOF_FRONT = (74.3, 121.0)   # top of the windscreen, where the roof batter starts
+BATTER_END_X = 29.0         # roof slopes ~9 deg from here forward (front quarter)
 TAIL_Z = 69.0               # bottom of the rear face
-RAKE = 0.358                # front face: 20 deg back from vertical
+RAKE = (NOSE[0] - CAB_ROOF_FRONT[0]) / (CAB_ROOF_FRONT[1] - NOSE[1])   # ~17 deg
 ARCH_R = 42.4               # wheel arch radius (tyre 40.6 + clearance)
 POD_Z = 54.0               # vent panel dips between the wheels
 
@@ -113,14 +115,14 @@ def side_silhouette():
     a_pod = math.degrees(math.asin((POD_Z - AXLE_Z) / ARCH_R))
     rear = _arc_pts(-AXLE_X, AXLE_Z, ARCH_R, 180 - a_tip, a_pod)        # rear arch, rear to front
     front = _arc_pts(AXLE_X, AXLE_Z, ARCH_R, 180 - a_pod, a_tip)        # front arch, rear to front
-    pts = [(-91.0, TAIL_Z)] + rear + front + [NOSE, (front_x(ROOF_Z), ROOF_Z),
+    pts = [(-91.0, TAIL_Z)] + rear + front + [NOSE, CAB_ROOF_FRONT, (BATTER_END_X, ROOF_Z),
                                               (-87.0, ROOF_Z), (-91.0, ROOF_Z - 4.4)]
     return pts
 
 
 def centre_silhouette():
     """Side view of the centre section (over the hull): from the lid up."""
-    return [(-91.0, LID_Z1), (90.5, LID_Z1), NOSE, (front_x(ROOF_Z), ROOF_Z),
+    return [(-91.0, LID_Z1), (90.5, LID_Z1), NOSE, CAB_ROOF_FRONT, (BATTER_END_X, ROOF_Z),
             (-87.0, ROOF_Z), (-91.0, ROOF_Z - 4.4)]
 
 
@@ -140,7 +142,25 @@ def front_duct_x(z):
     return front_x(z) - FRONT_DUCT_OFF
 
 
-RACK_X = front_duct_x(ROOF_Z)        # light bar sits over the front conduit exits
+BATTER_DEG = math.degrees(math.atan((ROOF_Z - CAB_ROOF_FRONT[1]) / (CAB_ROOF_FRONT[0] - BATTER_END_X)))
+
+
+def roof_z(x):
+    """Roof height at x (front quarter slopes down to the windscreen)."""
+    if x <= BATTER_END_X:
+        return ROOF_Z
+    t = (x - BATTER_END_X) / (CAB_ROOF_FRONT[0] - BATTER_END_X)
+    return ROOF_Z - t * (ROOF_Z - CAB_ROOF_FRONT[1])
+
+
+def _rack_x():
+    x = 70.0                          # where the front conduit comes out of the batter
+    for _ in range(30):
+        x = front_duct_x(roof_z(x))
+    return x
+
+
+RACK_X = _rack_x()                   # light bar sits over the front conduit exits
 
 FRIDGE = (32.0, 18.0, 20.0)
 FRIDGE_POS = (-66.0, 0.0)
@@ -418,7 +438,7 @@ def make_cab():
         for s in (-1, 1):
             cut.append(capsule_chain(conduit_path(front, s), DUCT_IR, 16))
     # side windows: cab door window (follows the rake) + two rear windows
-    wz0, wz1 = 96.5, 118.0
+    wz0, wz1 = 92.5, 112.5
     wins = [[(33.0, wz0), (front_x(wz0) - 11.0, wz0), (front_x(wz1) - 11.0, wz1), (33.0, wz1)],
             [(-26.0, wz0), (10.8, wz0), (10.8, wz1), (-26.0, wz1)],
             [(-72.4, wz0), (-35.5, wz0), (-35.5, wz1), (-72.4, wz1)]]
@@ -429,10 +449,10 @@ def make_cab():
     def on_face(z0, z1, depth_in=5.0, depth_out=5.0):
         return [(front_x(z0) - depth_in, z0), (front_x(z0) + depth_out, z0),
                 (front_x(z1) + depth_out, z1), (front_x(z1) - depth_in, z1)]
-    cut.append(side_prism(on_face(93.0, 121.0), -18.0, 18.0))                    # windscreen
+    cut.append(side_prism(on_face(92.0, 119.0), -18.0, 18.0))                    # windscreen
     for s in (-1, 1):                                                             # corner windows
         y0, y1 = sorted((s * 24.0, s * 38.0))
-        cut.append(side_prism(on_face(99.0, 119.0), y0, y1))
+        cut.append(side_prism(on_face(97.0, 117.5), y0, y1))
     cut.append(box(-96.0, -88.0, -14.0, 14.0, 98.0, 121.0))                      # rear door window
     # lights: headlights on the front corners, tail + work lights on the rear
     for s in (-1, 1):
@@ -446,12 +466,12 @@ def make_cab():
             cut.append(box(-96.0, -90.5 + LED_POCKET[2], y - 1.2, y + 1.2, z - 1.0, z + 1.0))
             cut.append(cyl_x(-92.0, REAR_DUCT_X, y, z, WIRE_R, 16))
     # front door outline (0.6 mm groove)
-    for z in (NOSE[1] + 1.0, 121.5):
+    for z in (NOSE[1] + 1.0, 120.2):
         cut.append(side_prism(on_face(z - 0.4, z + 0.4, 0.6, 3), -22.0, 22.0))
     for y in (-22.0, 22.0):
-        cut.append(side_prism(on_face(NOSE[1] + 1.0, 121.9, 0.6, 3), y - 0.4, y + 0.4))
+        cut.append(side_prism(on_face(NOSE[1] + 1.0, 120.6, 0.6, 3), y - 0.4, y + 0.4))
     # roof hatches (front and rear) as grooves
-    for hx in (40.0, -50.0):
+    for hx in (-50.0,):
         cut.append(box(hx - 11, hx + 11, -11, 11, ROOF_Z - 0.6, ROOF_Z + 1) -
                    box(hx - 10.2, hx + 10.2, -10.2, 10.2, ROOF_Z - 1, ROOF_Z + 2))
     # side vent panel between the wheels (orange on the real one)
@@ -663,7 +683,9 @@ BED, BED_MARGIN = 256.0, 5.0
 
 def place(parts_xy):
     out, boxes = [], []
-    for name, m, x, y, ext in parts_xy:
+    for item in parts_xy:
+        name, m, x, y, ext = item[:5]
+        extra = item[5] if len(item) > 5 else {}
         bb = m.bounding_box()
         mm = m.translate([x - bb[0], y - bb[1], 0])
         b = mm.bounding_box()
@@ -674,7 +696,7 @@ def place(parts_xy):
             if b[0] < b2[3] + 2 and b2[0] < b[3] + 2 and b[1] < b2[4] + 2 and b2[1] < b[4] + 2:
                 raise AssertionError("%s overlaps %s" % (name, n2))
         boxes.append((name, b))
-        out.append((name, mm, ext))
+        out.append((name, mm, ext, extra))
     return out
 
 
@@ -687,7 +709,7 @@ def build():
     asm = {
         "hull": p["hull"], "cab": p["cab"], "lid": p["lid"],
         "gasket": p["gasket"].translate([0, 0, RIM_Z]),
-        "lightbar": p["rack"].translate([RACK_X, 0, ROOF_Z]),
+        "lightbar": p["rack"].rotate([0, BATTER_DEG, 0]).translate([RACK_X, 0, roof_z(RACK_X) - 0.2]),
         "aircon": p["aircon"].translate([6.0, 0, ROOF_Z]),
         "beacon": p["beacon"].translate([REAR_DUCT_X, DUCT_POD_Y - 1.5, ROOF_Z]),
         "fridge": p["fridge"].translate([FRIDGE_POS[0], FRIDGE_POS[1], LID_Z1]),
@@ -767,7 +789,9 @@ def main():
     plates = [
         ("Body - PLA", place([
             ("Hull tub", P["01_hull_tub_print_floor_down"], 10, 8, 1),
-            ("Cab (roof down)", P["02_cab_print_roof_down"], 10, 76, 1)])),
+            ("Cab (roof down)", P["02_cab_print_roof_down"], 10, 76, 1,
+             {"enable_support": "1", "support_type": "tree(auto)",
+              "support_on_build_plate_only": "1"})])),
         ("Details - PLA", place(
             [("Deck lid", P["03_deck_lid"], 8, 6, 1)] +
             [("Wheel hub %d" % (i + 1), P["05_wheel_hub_x4"], 8 + i * 42, 72, 1) for i in range(4)] +
