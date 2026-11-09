@@ -816,6 +816,28 @@ def main():
                             [("Assembled - view only", [("SHERP N1200 assembled", view, 1)])],
                             "SHERP N1200 %s assembled" % VERSION)
     render(asm, dirs["renders"])
+    compare_sheet(here, dirs["renders"])
+
+
+def compare_sheet(here, out_png):
+    """Spec-sheet drawing (sherpaustralia.com) next to the model renders."""
+    from PIL import Image, ImageDraw
+    ref = os.path.join(here, "reference", "sherpaustralia_n1200_dimensions.jpg")
+    if not os.path.exists(ref):
+        return
+    src = Image.open(ref).convert("RGB")
+
+    def cr(name, b):
+        return Image.open(os.path.join(out_png, name)).convert("RGB").crop(b)
+    sheet = Image.new("RGB", (1500, 900), "white")
+    ImageDraw.Draw(sheet).text((20, 10), "SHERP N 1200 spec-sheet drawing (top) vs model %s (bottom)" % VERSION,
+                               fill="black")
+    sheet.paste(src.crop((88, 370, 225, 470)).resize((548, 400)), (20, 40))
+    sheet.paste(src.crop((235, 370, 335, 470)).resize((400, 400)), (590, 40))
+    sheet.paste(cr("side.png", (270, 190, 850, 640)).resize((548, 425)), (20, 460))
+    sheet.paste(cr("front.png", (360, 190, 760, 640)).resize((356, 400)), (610, 460))
+    sheet.paste(cr("iso_front.png", (250, 140, 860, 700)).resize((480, 440)), (1010, 240))
+    sheet.save(os.path.join(out_png, "compare_drawing_vs_model.png"))
 
 
 def render(asm, out_png):
